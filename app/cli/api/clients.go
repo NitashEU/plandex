@@ -21,7 +21,7 @@ var CloudApiHost string
 var Client types.ApiClient = (*Api)(nil)
 
 func init() {
-	if os.Getenv("PLANDEX_ENV") == "development" {
+	if true || os.Getenv("PLANDEX_ENV") == "development" {
 		CloudApiHost = os.Getenv("PLANDEX_API_HOST")
 		if CloudApiHost == "" {
 			CloudApiHost = "http://localhost:8099"

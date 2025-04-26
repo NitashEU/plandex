@@ -30,7 +30,7 @@ func init() {
 	}
 	HomeDir = home
 
-	if os.Getenv("PLANDEX_ENV") == "development" {
+	if true || os.Getenv("PLANDEX_ENV") == "development" {
 		HomePlandexDir = filepath.Join(home, ".plandex-home-dev-v2")
 	} else {
 		HomePlandexDir = filepath.Join(home, ".plandex-home-v2")
@@ -70,7 +70,7 @@ func FindOrCreatePlandex() (string, bool, error) {
 
 	// Determine the directory path
 	var dir string
-	if os.Getenv("PLANDEX_ENV") == "development" {
+	if true || os.Getenv("PLANDEX_ENV") == "development" {
 		dir = filepath.Join(Cwd, ".plandex-dev-v2")
 	} else {
 		dir = filepath.Join(Cwd, ".plandex-v2")
@@ -119,10 +119,10 @@ func FindPlandexDir() {
 
 func findPlandex(baseDir string) string {
 	var dir string
-	if os.Getenv("PLANDEX_ENV") == "development" {
+	if true || os.Getenv("PLANDEX_ENV") == "development" {
 		dir = filepath.Join(baseDir, ".plandex-dev-v2")
 	} else {
-		dir = filepath.Join(baseDir, ".plandex-v2")
+		dir = filepath.Join(baseDir, ".plandex-dev-v2")
 	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		return dir
