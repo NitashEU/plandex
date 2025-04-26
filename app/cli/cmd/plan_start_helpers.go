@@ -21,12 +21,7 @@ var (
 	fullAuto  bool
 
 	// Type flags
-	dailyModels     bool
-	reasoningModels bool
 	strongModels    bool
-	ossModels       bool
-	cheapModels     bool
-	geminiExpModels bool
 	// crazyModels     bool
 )
 
@@ -39,12 +34,7 @@ func AddNewPlanFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&fullAuto, "full", false, shared.AutoModeDescriptions[shared.AutoModeFull])
 
 	// Add type flags
-	cmd.Flags().BoolVar(&dailyModels, "daily", false, shared.DailyDriverModelPack.Description)
-	cmd.Flags().BoolVar(&reasoningModels, "reasoning", false, shared.ReasoningModelPack.Description)
-	cmd.Flags().BoolVar(&strongModels, "strong", false, shared.StrongModelPack.Description)
-	cmd.Flags().BoolVar(&cheapModels, "cheap", false, shared.CheapModelPack.Description)
-	cmd.Flags().BoolVar(&ossModels, "oss", false, shared.OSSModelPack.Description)
-	cmd.Flags().BoolVar(&geminiExpModels, "gemini-exp", false, shared.GeminiExperimentalModelPack.Description)
+	cmd.Flags().BoolVar(&strongModels, "strong", true, shared.StrongModelPack.Description)
 	// cmd.Flags().BoolVar(&crazyModels, "crazy", false, shared.CrazyModelPack.Description)
 }
 
@@ -131,18 +121,8 @@ func resolveModelPackWithArgs(settings *shared.PlanSettings, silent bool) (*shar
 
 	var packName string
 
-	if ossModels {
-		packName = shared.OSSModelPack.Name
-	} else if strongModels {
+	if strongModels {
 		packName = shared.StrongModelPack.Name
-	} else if cheapModels {
-		packName = shared.CheapModelPack.Name
-	} else if reasoningModels {
-		packName = shared.ReasoningModelPack.Name
-		// } else if crazyModels {
-		// 	packName = shared.CrazyModelPack.Name
-	} else {
-		packName = shared.DailyDriverModelPack.Name
 	}
 
 	if packName != originalSettings.ModelPack.Name {

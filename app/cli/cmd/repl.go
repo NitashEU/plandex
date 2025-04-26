@@ -118,19 +118,9 @@ func runRepl(cmd *cobra.Command, args []string) {
 			args = append(args, "--full")
 		}
 
-		if ossModels {
-			args = append(args, "--oss")
-		} else if strongModels {
+		if strongModels {
 			args = append(args, "--strong")
-		} else if cheapModels {
-			args = append(args, "--cheap")
-		} else if dailyModels {
-			args = append(args, "--daily")
-		} else if reasoningModels {
-			args = append(args, "--reasoning")
-		} else if geminiExpModels {
-			args = append(args, "--gemini-exp")
-		}
+		} 
 
 		newCmd.Run(newCmd, args)
 		os.Setenv("PLANDEX_DISABLE_SUGGESTIONS", "")

@@ -11,7 +11,6 @@ import (
 	"plandex-server/shutdown"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -508,26 +507,6 @@ func deleteRepoLockDB(id, planId, reason string, numRetry int) error {
 	activeLockIdsMu.Unlock()
 
 	return nil
-}
-
-func formatStackTrace(stack []byte) string {
-	numLines := 10
-	if !locksVerboseLogging {
-		numLines = 5
-	}
-	return formatStackTraceWithNumLines(stack, numLines)
-}
-
-func formatStackTraceLong(stack []byte) string {
-	return formatStackTraceWithNumLines(stack, 20)
-}
-
-func formatStackTraceWithNumLines(stack []byte, numLines int) string {
-	lines := strings.Split(string(stack), "\n")
-	// Take first 10 meaningful lines of stack trace
-	// Skip runtime frames (first 7 lines) and limit to next 10 lines
-	relevantLines := lines[7:min(len(lines), 7+numLines)]
-	return strings.Join(relevantLines, "\n")
 }
 
 func getGoroutineID() uint64 {

@@ -5,11 +5,18 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/joho/godotenv"
 )
 
 var BaseDir string
 
 func init() {
+	err := godotenv.Load(".env")
+	if err != nil {
+	  log.Fatal("Error loading .env file")
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		panic(fmt.Errorf("error getting user home dir: %v", err))

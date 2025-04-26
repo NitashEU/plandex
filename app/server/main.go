@@ -7,9 +7,15 @@ import (
 	"plandex-server/setup"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+	  log.Fatal("Error loading .env file")
+	}
+	
 	// Configure the default logger to include milliseconds in timestamps
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
 

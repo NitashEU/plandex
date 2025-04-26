@@ -16,10 +16,15 @@ import (
 
 	shared "plandex-shared"
 
+	"github.com/joho/godotenv"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func init() {
+	err := godotenv.Load()
+	if err != nil {
+	  log.Fatal("Error loading .env file")
+	}
 	// inter-package dependency injections to avoid circular imports
 	auth.SetApiClient(api.Client)
 

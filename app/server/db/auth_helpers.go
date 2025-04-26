@@ -89,6 +89,9 @@ func validateEmailVerification(email, pin string, enforceExpiration bool, errOnA
 	pinHashBytes := sha256.Sum256([]byte(pin))
 	pinHash := hex.EncodeToString(pinHashBytes[:])
 
+	log.Printf("Pin: %v\n", pin)
+	log.Printf("Pin Hash: %v\n", pinHash)
+
 	var authTokenId *string
 
 	query := `SELECT id, auth_token_id 
@@ -98,7 +101,7 @@ func validateEmailVerification(email, pin string, enforceExpiration bool, errOnA
 
 	if enforceExpiration {
 		query += ` AND created_at > $3`
-		err = Conn.QueryRow(query, pinHash, email, time.Now().Add(-emailVerificationExpirationMinutes*time.Minute)).Scan(&id, &authTokenId)
+		err = Conn.QueryRow(query, pinHash, email, time.Now().UTC().Add(-emailVerificationExpirationMinutes*time.Minute)).Scan(&id, &authTokenId)
 	} else {
 		err = Conn.QueryRow(query, pinHash, email).Scan(&id, &authTokenId)
 	}

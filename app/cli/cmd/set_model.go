@@ -139,9 +139,6 @@ func updateModelSettings(args []string, originalSettings *shared.PlanSettings) *
 		modelSetOrRoleOrSetting = args[0]
 
 		compare := modelSetOrRoleOrSetting
-		if compare == "daily" {
-			compare = "daily-driver"
-		}
 		for _, ms := range shared.BuiltInModelPacks {
 			if strings.EqualFold(ms.Name, compare) {
 				modelPack = ms
