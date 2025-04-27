@@ -2,6 +2,7 @@ package plan
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -209,31 +210,85 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	proposedWithLineNums := shared.AddLineNums(proposedContent)
 
 	// Choose prompt and tools based on preferred format
+	var promptText string
+	var headNumTokens int
+	var tools []openai.Tool
+	var toolChoice *openai.ToolChoice
 
-	log.Printf("Building XML validation replacements prompt")
-	promptText, headNumTokens := prompts.GetValidationReplacementsXmlPrompt(prompts.ValidationPromptParams{
-		Path:                 filePath,
-		OriginalWithLineNums: originalWithLineNums,
-		Desc:                 desc,
-		ProposedWithLineNums: proposedWithLineNums,
-		Diff:                 diff,
-		SyntaxErrors:         syntaxErrors,
-		Reasons:              reasons,
-	})
+	preferredFormat := fileState.settings.PreferredModelOutputFormat
+	if preferredFormat == shared.ModelOutputFormatToolCallJson {
+		log.Printf("Using JSON format for validation replacements")
+		promptText, headNumTokens = prompts.GetValidationReplacementsXmlPrompt(prompts.ValidationPromptParams{
+			Path:                 filePath,
+			OriginalWithLineNums: originalWithLineNums,
+			Desc:                 desc,
+			ProposedWithLineNums: proposedWithLineNums,
+			Diff:                 diff,
+			SyntaxErrors:         syntaxErrors,
+			Reasons:              reasons,
+		})
+
+		// Set up JSON tools
+		tools = []openai.Tool{
+			{
+				Type:     openai.ToolTypeFunction,
+				Function: prompts.ValidateFixFn,
+			},
+		}
+		
+		// Force the model to use the validate_fix function
+		validateFixChoice := openai.ToolChoice{
+			Type:     openai.ToolTypeFunction,
+			Function: &openai.ToolFunctionChoice{Name: prompts.ValidateFixFn.Name},
+		}
+		toolChoice = &validateFixChoice
+	} else {
+		log.Printf("Building XML validation replacements prompt")
+		promptText, headNumTokens = prompts.GetValidationReplacementsXmlPrompt(prompts.ValidationPromptParams{
+			Path:                 filePath,
+			OriginalWithLineNums: originalWithLineNums,
+			Desc:                 desc,
+			ProposedWithLineNums: proposedWithLineNums,
+			Diff:                 diff,
+			SyntaxErrors:         syntaxErrors,
+			Reasons:              reasons,
+		})
+	}
 
 	// log.Printf("Prompt to LLM: %s", promptText)
 
 	log.Printf("Creating initial messages for phase 1")
+	// Determine the appropriate text value based on format
+	var textValue string
+	if preferredFormat == shared.ModelOutputFormatToolCallJson {
+		textValue = prompts.SysValidateFixJson
+	} else {
+		textValue = promptText
+	}
+
 	messages := []types.ExtendedChatMessage{
 		{
 			Role: openai.ChatMessageRoleSystem,
 			Content: []types.ExtendedChatMessagePart{
 				{
 					Type: openai.ChatMessagePartTypeText,
-					Text: promptText,
+					Text: textValue,
 				},
 			},
 		},
+	}
+
+	// For JSON format, add the context as a user message
+	if preferredFormat == shared.ModelOutputFormatToolCallJson {
+		messages = append(messages, types.ExtendedChatMessage{
+			Role: openai.ChatMessageRoleUser,
+			Content: []types.ExtendedChatMessagePart{
+				{
+					Type: openai.ChatMessagePartTypeText,
+					Text: promptText,
+				},
+			},
+		})
 	}
 	reqStarted := time.Now()
 	fileState.builderRun.ReplacementStartedAt = reqStarted
@@ -281,7 +336,8 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 			fileState.builderRun.ReplacementFinishedAt = time.Now()
 		},
 		OnStream: onStream,
-
+		Tools:    tools,
+		ToolChoice: toolChoice,
 		WillCacheNumTokens: willCacheNumTokens,
 		SessionId:          params.sessionId,
 	})
@@ -302,7 +358,12 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	log.Printf("Added generation ID: %s", res.GenerationId)
 
 	// Handle response based on format
-	parseRes, err := handleXMLResponse(fileState, res.Content, originalWithLineNums, updated, params.validateOnly)
+	var parseRes buildValidateResult
+	if fileState.settings.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
+		parseRes, err = handleJSONResponse(fileState, res, originalWithLineNums, updated, params.validateOnly)
+	} else {
+		parseRes, err = handleXMLResponse(fileState, res.Content, originalWithLineNums, updated, params.validateOnly)
+	}
 
 	if err != nil {
 		log.Printf("Error handling response: %v", err)
@@ -312,6 +373,81 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	log.Printf("Validation result: valid=%v", parseRes.valid)
 
 	return parseRes, nil
+}
+
+func handleJSONResponse(
+	fileState *activeBuildStreamFileState,
+	res model.ModelResponse,
+	originalWithLineNums shared.LineNumberedTextType,
+	updated string,
+	validateOnly bool,
+) (buildValidateResult, error) {
+	log.Printf("Handling JSON response for file: %s", fileState.filePath)
+
+	// Check if we have a tool call response
+	if len(res.ToolCalls) == 0 {
+		log.Printf("No tool calls found in JSON response")
+		return buildValidateResult{
+			valid:   false,
+			updated: updated,
+			problem: "No tool calls found in JSON response",
+		}, nil
+	}
+
+	// We expect a validate_fix tool call
+	var validateFixRes prompts.ValidateFixRes
+	toolCall := res.ToolCalls[0]
+	
+	if toolCall.Function.Name != prompts.ValidateFixFn.Name {
+		log.Printf("Unexpected tool call: %s", toolCall.Function.Name)
+		return buildValidateResult{
+			valid:   false,
+			updated: updated,
+			problem: fmt.Sprintf("Unexpected tool call: %s", toolCall.Function.Name),
+		}, nil
+	}
+
+	// Parse the arguments
+	err := json.Unmarshal([]byte(toolCall.Function.Arguments), &validateFixRes)
+	if err != nil {
+		log.Printf("Error unmarshaling tool call arguments: %v", err)
+		return buildValidateResult{
+			valid:   false,
+			updated: updated,
+			problem: fmt.Sprintf("Error unmarshaling tool call arguments: %v", err),
+		}, nil
+	}
+
+	// If no replacements, consider it valid
+	if len(validateFixRes.Replacements) == 0 {
+		log.Printf("No replacements needed, content is valid")
+		fileState.builderRun.ReplacementSuccess = true
+		return buildValidateResult{
+			valid:   true,
+			updated: updated,
+		}, nil
+	}
+
+	if validateOnly {
+		log.Printf("Validation-only mode, skipping replacements")
+		return buildValidateResult{
+			valid:   false,
+			updated: updated,
+		}, nil
+	}
+
+	// Apply replacements
+	result := updated
+	for i, replacement := range validateFixRes.Replacements {
+		log.Printf("Applying replacement %d/%d", i+1, len(validateFixRes.Replacements))
+		result = strings.Replace(result, replacement.Old, replacement.New, 1)
+	}
+
+	return buildValidateResult{
+		valid:   false,
+		updated: result,
+		problem: "",
+	}, nil
 }
 
 func handleXMLResponse(
