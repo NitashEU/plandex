@@ -123,13 +123,33 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		PreferredModelOutputFormat: config.BaseModelConfig.PreferredModelOutputFormat,
 	})
 
+	var tools []openai.Tool
+	var toolChoice *openai.ToolChoice
+
+	var systemPrompt string
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
+		systemPrompt = prompts.SysExecStatusJson
+		tools = []openai.Tool{
+			{
+				Type:     openai.ToolTypeFunction,
+				Function: &prompts.ExecStatusFn,
+			},
+		}
+		toolChoice = &openai.ToolChoice{
+			Type:     openai.ToolTypeFunction,
+			Function: openai.ToolFunction{Name: prompts.ExecStatusFn.Name},
+		}
+	} else {
+		systemPrompt = prompt
+	}
+
 	messages := []types.ExtendedChatMessage{
 		{
 			Role: openai.ChatMessageRoleSystem,
 			Content: []types.ExtendedChatMessagePart{
 				{
 					Type: openai.ChatMessagePartTypeText,
-					Text: prompt,
+					Text: systemPrompt,
 				},
 			},
 		},
@@ -142,6 +162,8 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 		ModelConfig:    &config,
 		Purpose:        "Task completion check",
 		Messages:       messages,
+		Tools:          tools,
+		ToolChoice:     toolChoice,
 		ModelStreamId:  state.modelStreamId,
 		ConvoMessageId: state.replyId,
 		SessionId:      sessionId,
@@ -171,14 +193,13 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 				Msg:    "Missing required XML tags in response",
 			}
 		}
-	} else {
-
+	} else if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
 		if content == "" {
 			log.Printf("[ExecStatus] No function response found in model output")
 			return execStatusShouldContinueResult{}, nil
 		}
 
-		var res types.ExecStatusResponse
+		var res prompts.ExecStatusRes
 		if err := json.Unmarshal([]byte(content), &res); err != nil {
 			log.Printf("[ExecStatus] Failed to parse response: %v", err)
 			return execStatusShouldContinueResult{}, nil

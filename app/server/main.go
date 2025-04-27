@@ -15,7 +15,6 @@ func main() {
 	if err != nil {
 	  log.Fatal("Error loading .env file")
 	}
-	log.Println("Error loading .env filehjjhhh")
 	
 	// Configure the default logger to include milliseconds in timestamps
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)

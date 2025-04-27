@@ -185,13 +185,36 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 
 	prompt := "Pending changes:\n\n" + s
 
+	var sysPrompt string
+	var tools []openai.Tool
+	var toolChoice *openai.ToolChoice
+
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		sysPrompt = prompts.SysPendingResults
+	} else {
+		sysPrompt = prompts.SysCommitMsgJson
+		tools = []openai.Tool{
+			{
+				Type:     "function",
+				Function: &prompts.CommitMsgFn,
+			},
+		}
+		choice := openai.ToolChoice{
+			Type: "function",
+			Function: openai.ToolFunction{
+				Name: prompts.CommitMsgFn.Name,
+			},
+		}
+		toolChoice = &choice
+	}
+
 	messages := []types.ExtendedChatMessage{
 		{
 			Role: openai.ChatMessageRoleSystem,
 			Content: []types.ExtendedChatMessagePart{
 				{
 					Type: openai.ChatMessagePartTypeText,
-					Text: prompts.SysPendingResults,
+					Text: sysPrompt,
 				},
 			},
 		},
@@ -206,7 +229,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		},
 	}
 
-	modelRes, err := model.ModelRequest(ctx, model.ModelRequestParams{
+	reqParams := model.ModelRequestParams{
 		Clients:     clients,
 		Auth:        auth,
 		Plan:        plan,
@@ -214,7 +237,16 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		Purpose:     "Commit message",
 		Messages:    messages,
 		SessionId:   sessionId,
-	})
+	}
+
+	if tools != nil {
+		reqParams.Tools = tools
+	}
+	if toolChoice != nil {
+		reqParams.ToolChoice = toolChoice
+	}
+
+	modelRes, err := model.ModelRequest(ctx, reqParams)
 
 	if err != nil {
 		fmt.Println("Generate commit message error:", err)
@@ -228,5 +260,17 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 		return "", fmt.Errorf("no response from model")
 	}
 
-	return content, nil
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
+		// For XML format, return the content directly
+		return content, nil
+	} else {
+		// For JSON format, parse the response
+		var commitMsgRes prompts.CommitMsgRes
+		err = json.Unmarshal([]byte(content), &commitMsgRes)
+		if err != nil {
+			fmt.Printf("Error unmarshalling commit message response: %v\n", err)
+			return "", fmt.Errorf("error unmarshalling commit message response: %v", err)
+		}
+		return commitMsgRes.CommitMsg, nil
+	}
 }

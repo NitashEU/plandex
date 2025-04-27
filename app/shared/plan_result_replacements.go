@@ -18,13 +18,19 @@ func ApplyReplacementsVerbose(content string, replacements []*Replacement, setFa
 }
 
 func applyReplacements(content string, replacements []*Replacement, setFailed, verbose bool) (string, bool) {
+	// Normalize line endings to ensure platform-independent diffing and exact string matches
+	normalized := content
+	if strings.Contains(content, "\r\n") {
+		normalized = strings.ReplaceAll(content, "\r\n", "\n")
+	}
+
 	apply := func(replacements []*Replacement) (string, int) {
 		if verbose {
 			log.Println("Applying replacements")
-			log.Println("original content:\n", content)
+			log.Println("original content:\n", normalized)
 		}
 
-		updated := content
+		updated := normalized
 
 		lastInsertedIdx := 0
 
@@ -34,6 +40,9 @@ func applyReplacements(content string, replacements []*Replacement, setFailed, v
 				log.Println("updated:\n", updated)
 				log.Println("lastInsertedIdx:", lastInsertedIdx)
 			}
+
+			replacement.Old = strings.ReplaceAll(replacement.Old, "\r\n", "\n")
+			replacement.New = strings.ReplaceAll(replacement.New, "\r\n", "\n")
 
 			pre := updated[:lastInsertedIdx]
 			sub := updated[lastInsertedIdx:]
@@ -73,13 +82,12 @@ func applyReplacements(content string, replacements []*Replacement, setFailed, v
 				}
 
 				return updated, i
-
 			} else if replacement.EntireFile {
 				updated = replacement.New
 				lastInsertedIdx = 0
 			} else {
 				if verbose {
-					log.Printf("originalIdx: %d, len(replacement.Old): %d\n", originalIdx, len(replacement.Old))
+					log.Printf("originalIdx: %%d, len(replacement.Old): %%d\n", originalIdx, len(replacement.Old))
 					log.Println("Old: ", replacement.Old)
 					log.Println("New: ", replacement.New)
 				}
@@ -93,7 +101,7 @@ func applyReplacements(content string, replacements []*Replacement, setFailed, v
 				updated = pre + replaced
 
 				if verbose {
-					log.Printf("lastInsertedIdx: %d, originalIdx: %d, len(replacement.New): %d\n", lastInsertedIdx, originalIdx, len(replacement.New))
+					log.Printf("lastInsertedIdx: %%d, originalIdx: %%d, len(replacement.New): %%d\n", lastInsertedIdx, originalIdx, len(replacement.New))
 					log.Println("updated after replacement:")
 					log.Println(updated)
 				}
@@ -110,7 +118,6 @@ func applyReplacements(content string, replacements []*Replacement, setFailed, v
 	return res, failedAtIndex == -1
 
 	// for {
-
 	// 	if failedAtIndex == 0 {
 	// 		return res, false
 	// 	} else if failedAtIndex > 0 {
@@ -128,12 +135,10 @@ func applyReplacements(content string, replacements []*Replacement, setFailed, v
 	// 		} else {
 	// 			return res, false
 	// 		}
-
 	// 	} else {
 	// 		return res, true
 	// 	}
 	// }
-
 }
 
 func (planState *CurrentPlanState) GetFiles() (*CurrentPlanFiles, error) {

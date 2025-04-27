@@ -2,6 +2,7 @@ package plan
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -37,7 +38,29 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 	originalFileWithLineNums := shared.AddLineNums(originalFile)
 	proposedContentWithLineNums := shared.AddLineNums(proposedContent)
 
-	sysPrompt, headNumTokens := prompts.GetWholeFilePrompt(filePath, originalFileWithLineNums, proposedContentWithLineNums, desc, comments)
+	var tools []openai.Tool
+	var toolChoice *openai.ToolChoice
+	var sysPrompt string
+	var headNumTokens int
+
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
+		sysPrompt = prompts.SysWholeFileJson
+		tools = []openai.Tool{
+			{
+				Type:     openai.ToolTypeFunction,
+				Function: &prompts.WholeFileFn,
+			},
+		}
+		toolChoice = &openai.ToolChoice{
+			Type: openai.ToolTypeFunction,
+			Function: openai.ToolFunction{
+				Name: prompts.WholeFileFn.Name,
+			},
+		}
+		headNumTokens = shared.GetNumTokensEstimate(sysPrompt)
+	} else {
+		sysPrompt, headNumTokens = prompts.GetWholeFilePrompt(filePath, originalFileWithLineNums, proposedContentWithLineNums, desc, comments)
+	}
 
 	messages := []types.ExtendedChatMessage{
 		{
@@ -90,6 +113,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 
 		Messages:   messages,
 		Prediction: prediction,
+		Tools:      tools,
+		ToolChoice: toolChoice,
 
 		ModelStreamId:  fileState.modelStreamId,
 		ConvoMessageId: fileState.convoMessageId,
@@ -125,11 +150,24 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 
 	// log.Printf("buildWholeFile - %s - content:\n%s\n", filePath, content)
 
-	wholeFile := utils.GetXMLContent(content, "PlandexWholeFile")
-
-	if wholeFile == "" {
-		log.Printf("buildWholeFile - no whole file found in response\n")
-		return fileState.wholeFileRetryOrError(buildCtx, proposedContent, desc, comments, sessionId, fmt.Errorf("no whole file found in response"))
+	var wholeFile string
+	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
+		var res prompts.WholeFileRes
+		if err := json.Unmarshal([]byte(content), &res); err != nil {
+			log.Printf("buildWholeFile - error unmarshaling JSON response: %v\n", err)
+			return fileState.wholeFileRetryOrError(buildCtx, proposedContent, desc, comments, sessionId, fmt.Errorf("error unmarshaling JSON response: %v", err))
+		}
+		wholeFile = res.WholeFile
+		if wholeFile == "" {
+			log.Printf("buildWholeFile - empty whole file in JSON response\n")
+			return fileState.wholeFileRetryOrError(buildCtx, proposedContent, desc, comments, sessionId, fmt.Errorf("empty whole file in JSON response"))
+		}
+	} else {
+		wholeFile = utils.GetXMLContent(content, "PlandexWholeFile")
+		if wholeFile == "" {
+			log.Printf("buildWholeFile - no whole file found in response\n")
+			return fileState.wholeFileRetryOrError(buildCtx, proposedContent, desc, comments, sessionId, fmt.Errorf("no whole file found in response"))
+		}
 	}
 
 	return wholeFile, nil
