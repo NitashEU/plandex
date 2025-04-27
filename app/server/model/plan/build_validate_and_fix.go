@@ -215,7 +215,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	var tools []openai.Tool
 	var toolChoice *openai.ToolChoice
 
-	preferredFormat := fileState.settings.PreferredModelOutputFormat
+	preferredFormat := modelConfig.BaseModelConfig.PreferredModelOutputFormat
 	if preferredFormat == shared.ModelOutputFormatToolCallJson {
 		log.Printf("Using JSON format for validation replacements")
 		promptText, headNumTokens = prompts.GetValidationReplacementsXmlPrompt(prompts.ValidationPromptParams{
@@ -232,14 +232,14 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		tools = []openai.Tool{
 			{
 				Type:     openai.ToolTypeFunction,
-				Function: prompts.ValidateFixFn,
+				Function: &prompts.ValidateFixFn,
 			},
 		}
 		
 		// Force the model to use the validate_fix function
 		validateFixChoice := openai.ToolChoice{
 			Type:     openai.ToolTypeFunction,
-			Function: &openai.ToolFunctionChoice{Name: prompts.ValidateFixFn.Name},
+			Function: &openai.ToolFunction{Name: prompts.ValidateFixFn.Name},
 		}
 		toolChoice = &validateFixChoice
 	} else {
@@ -359,7 +359,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 
 	// Handle response based on format
 	var parseRes buildValidateResult
-	if fileState.settings.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
+	if modelConfig.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
 		parseRes, err = handleJSONResponse(fileState, res, originalWithLineNums, updated, params.validateOnly)
 	} else {
 		parseRes, err = handleXMLResponse(fileState, res.Content, originalWithLineNums, updated, params.validateOnly)
@@ -377,7 +377,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 
 func handleJSONResponse(
 	fileState *activeBuildStreamFileState,
-	res model.ModelResponse,
+	res *types.ModelResponse,
 	originalWithLineNums shared.LineNumberedTextType,
 	updated string,
 	validateOnly bool,
