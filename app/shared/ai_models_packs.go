@@ -14,13 +14,13 @@ func init() {
 		Description: "For difficult tasks where slower responses and builds are ok. Uses o1 for architecture and planning, claude-3.7-sonnet for implementation, prioritizes reliability over speed for builds. Supports up to 160k input context.",
 		Planner: PlannerRoleConfig{
 			ModelRoleConfig:    *gemini25pro(ModelRolePlanner, nil),
-			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25"),
+			PlannerModelConfig: getPlannerModelConfig(ModelProviderOpenRouter, "google/gemini-2.5-pro-preview-03-25"),
 		},
 		Architect:        gemini25pro(ModelRoleArchitect, nil),
 		Coder:            claude37SonnetThinking(ModelRoleCoder, nil),
 		PlanSummary:      *openaio3miniLow(ModelRolePlanSummary, nil),
-		Builder:          *gemini25pro(ModelRoleBuilder, nil),
-		WholeFileBuilder: gemini25pro(ModelRoleWholeFileBuilder, nil),
+		Builder:          *openaio3miniHigh(ModelRoleBuilder, nil),
+		WholeFileBuilder: openaio3miniHigh(ModelRoleWholeFileBuilder, nil),
 		Namer:            *openaio3miniHigh(ModelRoleName, nil),
 		CommitMsg:        *openaio3miniHigh(ModelRoleCommitMsg, nil),
 		ExecStatus:       *openaio3miniMedium(ModelRoleExecStatus, nil),
@@ -81,5 +81,5 @@ func openaio3(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
 }
 
 func gemini25pro(role ModelRole, fallbacks *modelConfig) *ModelRoleConfig {
-	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-exp-03-25", fallbacks)
+	return getModelConfig(role, ModelProviderOpenRouter, "google/gemini-2.5-pro-preview-03-25", fallbacks)
 }
