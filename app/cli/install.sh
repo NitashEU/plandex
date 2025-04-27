@@ -196,6 +196,10 @@ download_plandex
 echo ""
 echo "🎉 Installation complete"
 echo ""
+
+# Add a fun emoji banner line after the installation confirmation message
+echo -e "\033[1;33m🚀 ✨ 🔮 \033[1;32mYour AI coding assistant ready to help! \033[1;33m💻 🛠️ 📝\033[0m"
+
 echo "$(printf '%*s' "$(tput cols)" '' | tr ' ' -)"
 echo ""
 echo "⚡️ Run 'plandex' or 'pdx' in any project directory and start building!"
