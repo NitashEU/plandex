@@ -239,7 +239,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		// Force the model to use the validate_fix function
 		validateFixChoice := openai.ToolChoice{
 			Type:     openai.ToolTypeFunction,
-			Function: &openai.ToolFunctionChoice{Name: prompts.ValidateFixFn.Name},
+			Function: openai.ToolFunction{Name: prompts.ValidateFixFn.Name},
 		}
 		toolChoice = &validateFixChoice
 	} else {
