@@ -239,7 +239,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 		// Force the model to use the validate_fix function
 		validateFixChoice := openai.ToolChoice{
 			Type:     openai.ToolTypeFunction,
-			Function: &openai.ToolFunction{Name: prompts.ValidateFixFn.Name},
+			Function: &openai.ToolFunctionChoice{Name: prompts.ValidateFixFn.Name},
 		}
 		toolChoice = &validateFixChoice
 	} else {
@@ -384,31 +384,18 @@ func handleJSONResponse(
 ) (buildValidateResult, error) {
 	log.Printf("Handling JSON response for file: %s", fileState.filePath)
 
-	// Check if we have a tool call response
-	if len(res.ToolCalls) == 0 {
-		log.Printf("No tool calls found in JSON response")
+	if res.Content == "" {
+		log.Printf("Empty JSON response")
 		return buildValidateResult{
 			valid:   false,
 			updated: updated,
-			problem: "No tool calls found in JSON response",
+			problem: "Empty JSON response",
 		}, nil
 	}
 
-	// We expect a validate_fix tool call
+	// Directly unmarshal response content
 	var validateFixRes prompts.ValidateFixRes
-	toolCall := res.ToolCalls[0]
-	
-	if toolCall.Function.Name != prompts.ValidateFixFn.Name {
-		log.Printf("Unexpected tool call: %s", toolCall.Function.Name)
-		return buildValidateResult{
-			valid:   false,
-			updated: updated,
-			problem: fmt.Sprintf("Unexpected tool call: %s", toolCall.Function.Name),
-		}, nil
-	}
-
-	// Parse the arguments
-	err := json.Unmarshal([]byte(toolCall.Function.Arguments), &validateFixRes)
+	err := json.Unmarshal([]byte(res.Content), &validateFixRes)
 	if err != nil {
 		log.Printf("Error unmarshaling tool call arguments: %v", err)
 		return buildValidateResult{
