@@ -10,11 +10,30 @@ import (
 	"plandex-server/db"
 	modelPlan "plandex-server/model/plan"
 	"time"
+	"regexp"
+	"strings"
+	"unicode"
 
 	shared "plandex-shared"
 
 	"github.com/gorilla/mux"
 )
+
+// sanitizeCommitMessage ensures Conventional Commits format and strips leading emojis
+var conventionalCommitRegex = regexp.MustCompile(`^[a-z]+(\([a-z0-9_-]+\))?: .+`)
+
+func sanitizeCommitMessage(summary string) string {
+	runes := []rune(summary)
+	i := 0
+	for i < len(runes) && !unicode.IsLetter(runes[i]) && !unicode.IsDigit(runes[i]) {
+		i++
+	}
+	cleaned := strings.TrimSpace(string(runes[i:]))
+	if conventionalCommitRegex.MatchString(cleaned) {
+		return cleaned
+	}
+	return fmt.Sprintf("chore(server): %s", cleaned)
+}
 
 func CurrentPlanHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received request for CurrentPlanHandler")
@@ -202,6 +221,8 @@ func ApplyPlanHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error generating commit message: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	commitMsg = sanitizeCommitMessage(commitMsg)
 
 	err = db.ExecRepoOperation(db.ExecRepoOperationParams{
 		OrgId:          auth.OrgId,

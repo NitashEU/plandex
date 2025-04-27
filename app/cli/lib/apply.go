@@ -15,6 +15,8 @@ import (
 	"plandex-cli/term"
 	"plandex-cli/types"
 	"strings"
+	"regexp"
+	"unicode"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -24,6 +26,24 @@ import (
 
 	"github.com/fatih/color"
 )
+
+var conventionalCommitRegex = regexp.MustCompile(`^[a-z]+(\([a-z0-9_-]+\))?: .+`)
+
+func sanitizeCommitSummary(summary string) string {
+	runes := []rune(summary)
+	i := 0
+	for i < len(runes) {
+		if unicode.IsLetter(runes[i]) || unicode.IsDigit(runes[i]) {
+			break
+		}
+		i++
+	}
+	cleaned := strings.TrimSpace(string(runes[i:]))
+	if conventionalCommitRegex.MatchString(cleaned) {
+		return cleaned
+	}
+	return fmt.Sprintf("chore(cli): %s", cleaned)
+}
 
 type ApplyPlanParams struct {
 	PlanId      string
@@ -606,9 +626,7 @@ func commitApplied(autoCommit bool, commitSummary string, updatedFiles []string,
 	if confirmed {
 		// Commit the changes
 		msg := currentPlanState.PendingChangesSummaryForApply(commitSummary)
-		// log.Println("Committing changes with message:")
-		// log.Println(msg)
-		// spew.Dump(currentPlanState)
+		msg = sanitizeCommitSummary(msg)
 		err = GitAddAndCommitPaths(fs.ProjectRoot, msg, updatedFiles, true)
 		if err != nil {
 			return fmt.Errorf("failed to commit changes: %s", err.Error())
@@ -620,11 +638,11 @@ func commitApplied(autoCommit bool, commitSummary string, updatedFiles []string,
 
 func ApplyFiles(toApply map[string]string, toRemove map[string]bool, projectPaths *types.ProjectPaths) ([]string, *types.ApplyRollbackPlan, error) {
 	var updatedFiles []string
-	toRevert := map[string]types.ApplyReversion{}
+	var toRevert = map[string]types.ApplyReversion{}
 	var toRemoveOnRollback []string
 
 	var mu sync.Mutex
-	totalOps := len(toApply) + len(toRemove)
+	 totalOps := len(toApply) + len(toRemove)
 	errCh := make(chan error, totalOps)
 
 	for path, content := range toApply {
@@ -661,7 +679,6 @@ func ApplyFiles(toApply map[string]string, toRemove map[string]bool, projectPath
 				}
 				// Check if the file has changed
 				if string(bytes) == content {
-					// log.Println("File is unchanged, skipping")
 					errCh <- nil
 					return
 				} else {

@@ -12,6 +12,9 @@ import (
 	"plandex-server/notify"
 	"plandex-server/types"
 	"plandex-server/utils"
+	"regexp"
+	"strings"
+	"unicode"
 
 	shared "plandex-shared"
 
@@ -166,6 +169,21 @@ func (state *activeTellStreamState) genPlanDescription() (*db.ConvoMessageDescri
 	}, nil
 }
 
+var conventionalCommitRegex = regexp.MustCompile(`^[a-z]+(\([a-z0-9_-]+\))?: .+`)
+
+func sanitizeCommitMessage(summary string) string {
+	runes := []rune(summary)
+	i := 0
+	for i < len(runes) && !unicode.IsLetter(runes[i]) && !unicode.IsDigit(runes[i]) {
+		i++
+	}
+	cleaned := strings.TrimSpace(string(runes[i:]))
+	if conventionalCommitRegex.MatchString(cleaned) {
+		return cleaned
+	}
+	return fmt.Sprintf("chore(server): %s", cleaned)
+}
+
 func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, clients map[string]model.ClientInfo, settings *shared.PlanSettings, current *shared.CurrentPlanState, sessionId string, ctx context.Context) (string, error) {
 	config := settings.ModelPack.CommitMsg
 
@@ -180,7 +198,7 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 	}
 
 	if num <= 1 {
-		return s, nil
+		return sanitizeCommitMessage(s), nil
 	}
 
 	prompt := "Pending changes:\n\n" + s
@@ -261,16 +279,14 @@ func GenCommitMsgForPendingResults(auth *types.ServerAuth, plan *db.Plan, client
 	}
 
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatXml {
-		// For XML format, return the content directly
-		return content, nil
+		return sanitizeCommitMessage(content), nil
 	} else {
-		// For JSON format, parse the response
 		var commitMsgRes prompts.CommitMsgRes
 		err = json.Unmarshal([]byte(content), &commitMsgRes)
 		if err != nil {
 			fmt.Printf("Error unmarshalling commit message response: %v\n", err)
 			return "", fmt.Errorf("error unmarshalling commit message response: %v", err)
 		}
-		return commitMsgRes.CommitMsg, nil
+		return sanitizeCommitMessage(commitMsgRes.CommitMsg), nil
 	}
 }
