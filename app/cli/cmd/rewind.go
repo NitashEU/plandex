@@ -37,6 +37,40 @@ If project files have changes, you will always be prompted before updating.`,
 	Args: cobra.MaximumNArgs(1),
 	Run:  rewind,
 }
+import (
+    "fmt"
+    "os"
+    "plandex-cli/api"
+    "plandex-cli/auth"
+    "plandex-cli/fs"
+    "plandex-cli/lib"
+    "plandex-cli/term"
+    "regexp"
+    "strconv"
+    "strings"
+    "unicode"
+    "time"
+
+    shared "plandex-shared"
+
+    "github.com/spf13/cobra"
+)
+
+// sanitizeCommitMessage ensures Conventional Commits format and strips leading emojis
+var conventionalCommitRegex = regexp.MustCompile(`^[a-z]+(\([a-z0-9_-]+\))?: .+`)
+
+func sanitizeCommitMessage(summary string) string {
+    runes := []rune(summary)
+    i := 0
+    for i < len(runes) && !unicode.IsLetter(runes[i]) && !unicode.IsDigit(runes[i]) {
+        i++
+    }
+    cleaned := strings.TrimSpace(string(runes[i:]))
+    if conventionalCommitRegex.MatchString(cleaned) {
+        return cleaned
+    }
+    return fmt.Sprintf("chore(rewind): %s", cleaned)
+}
 
 var revert bool
 var skipRevert bool
@@ -49,6 +83,24 @@ func init() {
 	rewindCmd.Flags().BoolVar(&skipCommit, "skip-commit", false, "Skip committing changes to git when --revert is passed")
 
 }
+
+        if shouldCommit {
+            msg := "🤖 Plandex → rewound plan state and reverted these changes:"
+            for _, apply := range undonePlanApplies {
+                msg += fmt.Sprintf("\n   • %s", apply.CommitMsg)
+            }
+
+            paths := []string{}
+            for path := range analysis.RequiredChanges {
+                paths = append(paths, path)
+            }
+
+            msg = sanitizeCommitMessage(msg)
+            err := lib.GitAddAndCommitPaths(fs.ProjectRoot, msg, paths, true)
+            if err != nil {
+                term.OutputErrorAndExit("Error committing changes: %v", err)
+            }
+        }
 
 func rewind(cmd *cobra.Command, args []string) {
 	auth.MustResolveAuthWithOrg()

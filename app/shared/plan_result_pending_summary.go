@@ -5,7 +5,24 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"regexp"
+	"unicode"
 )
+
+var conventionalCommitRegex = regexp.MustCompile(`^[a-z]+(\([a-z0-9_-]+\))?: .+`)
+
+func sanitizeCommitMessage(summary string) string {
+	runes := []rune(summary)
+	i := 0
+	for i < len(runes) && !unicode.IsLetter(runes[i]) && !unicode.IsDigit(runes[i]) {
+		i++
+	}
+	cleaned := strings.TrimSpace(string(runes[i:]))
+	if conventionalCommitRegex.MatchString(cleaned) {
+		return cleaned
+	}
+	return fmt.Sprintf("chore(shared): %s", cleaned)
+}
 
 func (state *CurrentPlanState) PendingChangesSummaryForBuild() string {
 	return state.pendingChangesSummary(false, "")
@@ -93,7 +110,7 @@ func (state *CurrentPlanState) pendingChangesSummary(forApply bool, commitSummar
 	rebuildPathsSet := make(map[string]bool)
 
 	if forApply {
-		msgs = append(msgs, "🤖 Plandex → "+commitSummary)
+		msgs = append(msgs, sanitizeCommitMessage(commitSummary))
 	} else {
 		for _, ch := range sortedChangesets {
 			allRebuild := true
