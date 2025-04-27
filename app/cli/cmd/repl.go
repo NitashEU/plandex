@@ -279,6 +279,19 @@ func getSuggestions() []prompt.Suggest {
 	return suggestions
 }
 
+	color.New(color.FgHiWhite, color.BgBlue, color.Bold).Print(" 👋 Welcome to Plandex ")
+
+	// Add a fun emoji banner line below the welcome message
+	fmt.Println()
+	color.New(color.FgHiYellow).Print("🚀 ✨ 🔮 ")
+	color.New(color.FgHiGreen).Print("Your AI coding assistant ready to help! ")
+	color.New(color.FgHiYellow).Print("💻 🛠️ 📝")
+
+	versionStr := version.Version
+	if versionStr != "development" {
+		color.New(color.FgHiWhite, color.BgHiBlack).Printf(" v%s ", versionStr)
+	}
+
 func executeOnEnter(p *prompt.Prompt, indentSize int) (int, bool) {
 	input := p.Buffer().Text()
 	cmd, _ := parseCommand(input)
@@ -1196,3 +1209,4 @@ func handleRunCommand(args []string) error {
 
 	return nil
 }
+
