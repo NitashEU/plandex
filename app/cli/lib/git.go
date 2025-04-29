@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 var gitMutex sync.Mutex
@@ -55,16 +56,6 @@ func GitAddAndCommitPaths(dir, message string, paths []string, lockMutex bool) e
 
 	return nil
 }
-import (
-    "fmt"
-    "log"
-    "os/exec"
-    "regexp"
-    "strings"
-    "unicode"
-    "sync"
-    "time"
-)
 
 func GitAdd(repoDir, path string, lockMutex bool) error {
 	if lockMutex {
@@ -75,26 +66,6 @@ func GitAdd(repoDir, path string, lockMutex bool) error {
 	res, err := exec.Command("git", "-C", repoDir, "add", path).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error adding files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-	}
-
-	return nil
-}
-
-func GitCommit(repoDir, commitMsg string, paths []string, lockMutex bool) error {
-	if lockMutex {
-		gitMutex.Lock()
-		defer gitMutex.Unlock()
-	}
-
-	args := []string{"-C", repoDir, "commit", "-m", commitMsg, "--allow-empty"}
-
-	if len(paths) > 0 {
-		args = append(args, paths...)
-	}
-
-	res, err := exec.Command("git", args...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
 	}
 
 	return nil
@@ -131,22 +102,18 @@ func GitStashCreate(message string) error {
 // there isn't any structured way to get stash conflicts from git, unfortunately
 const PopStashConflictMsg = "overwritten by merge"
 
-var conventionalCommitRegex = regexp.MustCompile(`^[a-z]+(\([a-z0-9_-]+\))?: .+`)
-
 func sanitizeCommitMessage(summary string) string {
-    runes := []rune(summary)
-    i := 0
-    for i < len(runes) && !unicode.IsLetter(runes[i]) && !unicode.IsDigit(runes[i]) {
-        i++
-    }
-    cleaned := strings.TrimSpace(string(runes[i:]))
-    if conventionalCommitRegex.MatchString(cleaned) {
-        return cleaned
-    }
-    return fmt.Sprintf("chore(cli): %s", cleaned)
+	runes := []rune(summary)
+	i := 0
+	for i < len(runes) && !unicode.IsLetter(runes[i]) && !unicode.IsDigit(runes[i]) {
+		i++
+	}
+	cleaned := strings.TrimSpace(string(runes[i:]))
+	if conventionalCommitRegex.MatchString(cleaned) {
+		return cleaned
+	}
+	return fmt.Sprintf("chore(cli): %s", cleaned)
 }
-
-var gitMutex sync.Mutex
 
 const ConflictMsgFilesEnd = "commit your changes"
 
@@ -243,28 +210,28 @@ func GitCheckoutFile(path string) error {
 }
 
 func GitCommit(repoDir, commitMsg string, paths []string, lockMutex bool) error {
-    if lockMutex {
-        gitMutex.Lock()
-        defer gitMutex.Unlock()
-    }
+	if lockMutex {
+		gitMutex.Lock()
+		defer gitMutex.Unlock()
+	}
 
-    originalMsg := commitMsg
-    commitMsg = sanitizeCommitMessage(commitMsg)
-    if originalMsg != commitMsg {
-        log.Printf("GitCommit: sanitized commit message from %q to %q", originalMsg, commitMsg)
-    }
+	originalMsg := commitMsg
+	commitMsg = sanitizeCommitMessage(commitMsg)
+	if originalMsg != commitMsg {
+		log.Printf("GitCommit: sanitized commit message from %q to %q", originalMsg, commitMsg)
+	}
 
-    args := []string{"-C", repoDir, "commit", "-m", commitMsg, "--allow-empty"}
-    if len(paths) > 0 {
-        args = append(args, paths...)
-    }
+	args := []string{"-C", repoDir, "commit", "-m", commitMsg, "--allow-empty"}
+	if len(paths) > 0 {
+		args = append(args, paths...)
+	}
 
-    res, err := exec.Command("git", args...).CombinedOutput()
-    if err != nil {
-        return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
-    }
+	res, err := exec.Command("git", args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error committing files to git repository for dir: %s, err: %v, output: %s", repoDir, err, string(res))
+	}
 
-    return nil
+	return nil
 }
 
 const GitLogTimestampFormat = "Mon Jan 2, 2006 | 3:04:05pm"

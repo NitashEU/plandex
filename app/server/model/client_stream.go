@@ -140,7 +140,7 @@ func processChatCompletionStream(
 					if choice.FinishReason == "error" {
 						err = fmt.Errorf("model stopped with error status | The model is not responding.")
 						return accumulator.Result(true, err), err
-					} else {
+					} else if choice.FinishReason != "tool_calls" {
 						// Reset the timer for the usage chunk
 						if !timer.Stop() {
 							<-timer.C

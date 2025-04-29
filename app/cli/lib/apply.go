@@ -14,13 +14,13 @@ import (
 	"plandex-cli/fs"
 	"plandex-cli/term"
 	"plandex-cli/types"
-	"strings"
 	"regexp"
-	"unicode"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
+	"unicode"
 
 	shared "plandex-shared"
 
@@ -642,7 +642,7 @@ func ApplyFiles(toApply map[string]string, toRemove map[string]bool, projectPath
 	var toRemoveOnRollback []string
 
 	var mu sync.Mutex
-	 totalOps := len(toApply) + len(toRemove)
+	totalOps := len(toApply) + len(toRemove)
 	errCh := make(chan error, totalOps)
 
 	for path, content := range toApply {

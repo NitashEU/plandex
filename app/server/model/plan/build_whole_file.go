@@ -44,7 +44,7 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 	var headNumTokens int
 
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
-		sysPrompt = prompts.SysWholeFileJson
+		sysPrompt, headNumTokens = prompts.GetWholeFileJsonPrompt(filePath, originalFileWithLineNums, proposedContentWithLineNums, desc, comments)
 		tools = []openai.Tool{
 			{
 				Type:     openai.ToolTypeFunction,

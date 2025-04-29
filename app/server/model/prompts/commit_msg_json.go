@@ -7,7 +7,7 @@ import (
 
 // SysCommitMsgJson is the system prompt instructing the model to generate a commit message via a function call
 const SysCommitMsgJson = `You are a tool that generates a concise, descriptive git commit message summarizing the pending changes.
-Respond by calling the function "commitMsg" exactly once with a JSON object containing a single property "commitMsg" set to the generated commit message. Do not include any additional text.`
+Respond by calling the function "commitMsg" exactly once with a JSON object containing a single property "commitMsg" set to the generated commit message. Do not include any additional text. The commit message MUST adhere commitlint subject must not be sentence-case, start-case, pascal-case, upper-case [subject-case]`
 
 // CommitMsgFn defines the structure of the JSON function call for generating a commit message
 var CommitMsgFn = openai.FunctionDefinition{
@@ -18,7 +18,7 @@ var CommitMsgFn = openai.FunctionDefinition{
 		Properties: map[string]jsonschema.Definition{
 			"commitMsg": {
 				Type:        jsonschema.String,
-				Description: "The commit message summarizing the changes",
+				Description: "The commit message summarizing the changes. Adhering commitlint! subject must not be sentence-case, start-case, pascal-case, upper-case [subject-case]",
 			},
 		},
 		Required: []string{"commitMsg"},

@@ -128,7 +128,7 @@ func (state *activeTellStreamState) execStatusShouldContinue(currentMessage stri
 
 	var systemPrompt string
 	if config.BaseModelConfig.PreferredModelOutputFormat == shared.ModelOutputFormatToolCallJson {
-		systemPrompt = prompts.SysExecStatusJson
+		systemPrompt = prompt
 		tools = []openai.Tool{
 			{
 				Type:     openai.ToolTypeFunction,
