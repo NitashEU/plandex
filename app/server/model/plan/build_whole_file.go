@@ -129,7 +129,8 @@ func (fileState *activeBuildStreamFileState) buildWholeFileFallback(buildCtx con
 			fileState.builderRun.BuildWholeFileFinishedAt = time.Now()
 		},
 
-		WillCacheNumTokens: willCacheNumTokens,
+		WillCacheNumTokens:    willCacheNumTokens,
+		EstimatedOutputTokens: maxExpectedOutputTokens,
 
 		SessionId: sessionId,
 	})

@@ -20,9 +20,12 @@ var (
 	semiAuto  bool
 	fullAuto  bool
 
-	// Type flags
-	strongModels    bool
-	// crazyModels     bool
+	dailyModels         bool
+	reasoningModels     bool
+	strongModels        bool
+	ossModels           bool
+	cheapModels         bool
+	geminiPreviewModels bool
 )
 
 func AddNewPlanFlags(cmd *cobra.Command) {
@@ -34,8 +37,12 @@ func AddNewPlanFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&fullAuto, "full", false, shared.AutoModeDescriptions[shared.AutoModeFull])
 
 	// Add type flags
-	cmd.Flags().BoolVar(&strongModels, "strong", true, shared.StrongModelPack.Description)
-	// cmd.Flags().BoolVar(&crazyModels, "crazy", false, shared.CrazyModelPack.Description)
+	cmd.Flags().BoolVar(&dailyModels, "daily", false, shared.DailyDriverModelPack.Description)
+	cmd.Flags().BoolVar(&reasoningModels, "reasoning", false, shared.ReasoningModelPack.Description)
+	cmd.Flags().BoolVar(&strongModels, "strong", false, shared.StrongModelPack.Description)
+	cmd.Flags().BoolVar(&cheapModels, "cheap", false, shared.CheapModelPack.Description)
+	cmd.Flags().BoolVar(&ossModels, "oss", false, shared.OSSModelPack.Description)
+	cmd.Flags().BoolVar(&geminiPreviewModels, "gemini-preview", false, shared.GeminiPreviewModelPack.Description)
 }
 
 func resolveAutoMode(config *shared.PlanConfig) (bool, *shared.PlanConfig) {

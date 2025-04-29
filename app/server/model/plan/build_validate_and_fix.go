@@ -209,6 +209,8 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 	originalWithLineNums := shared.AddLineNums(originalFile)
 	proposedWithLineNums := shared.AddLineNums(proposedContent)
 
+	maxExpectedOutputTokens := shared.GetNumTokensEstimate(originalFile)/2 + shared.GetNumTokensEstimate(proposedContent)
+
 	// Choose prompt and tools based on preferred format
 	var promptText string
 	var headNumTokens int
@@ -235,7 +237,7 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 				Function: &prompts.ValidateFixFn,
 			},
 		}
-		
+
 		// Force the model to use the validate_fix function
 		validateFixChoice := openai.ToolChoice{
 			Type:     openai.ToolTypeFunction,
@@ -335,11 +337,12 @@ func (fileState *activeBuildStreamFileState) buildValidate(
 			log.Printf("Finished model request")
 			fileState.builderRun.ReplacementFinishedAt = time.Now()
 		},
-		OnStream: onStream,
-		Tools:    tools,
-		ToolChoice: toolChoice,
-		WillCacheNumTokens: willCacheNumTokens,
-		SessionId:          params.sessionId,
+		OnStream:              onStream,
+		Tools:                 tools,
+		ToolChoice:            toolChoice,
+		WillCacheNumTokens:    willCacheNumTokens,
+		SessionId:             params.sessionId,
+		EstimatedOutputTokens: maxExpectedOutputTokens,
 	})
 
 	if err != nil {
